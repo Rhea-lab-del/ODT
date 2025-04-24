@@ -1,0 +1,45 @@
+#re-edited odt_code
+
+from machine import Pin, ADC, PWM
+import neopixel
+import time
+
+# Setup LDR (analog pin)
+ldr = ADC(Pin(34))  # Make sure your LDR is on an ADC-capable pin
+ldr.atten(ADC.ATTN_11DB)  # Full range 0–3.3V
+
+# Setup NeoPixel
+num_pixels = 16
+pixels = neopixel.NeoPixel(Pin(13), num_pixels)
+
+# Setup Servo Motor
+servo_motor = PWM(Pin(4), freq=50)
+
+# Timing
+last_time = time.ticks_ms()
+
+while True:
+    ldr_value = ldr.read()
+    print("LDR Value:", ldr_value)
+
+    if ldr_value > 2000:  # Adjust threshold as needed
+        print("Bright light detected — activating devices.")
+
+        # Activate Servo (spin)
+        servo_motor.duty(26)
+
+        # Turn on all NeoPixels (e.g., white)
+        for i in range(num_pixels):
+            pixels[i] = (255, 255, 255)
+        pixels.write()
+
+    else:
+        # Deactivate Servo (stop or neutral)
+        servo_motor.duty(77)
+
+        # Turn off NeoPixels
+        for i in range(num_pixels):
+            pixels[i] = (0, 0, 0)
+        pixels.write()
+
+    time.sleep(0.1)  # Slight delay to ease CPU load
