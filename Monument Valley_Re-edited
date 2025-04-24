@@ -1,0 +1,107 @@
+from machine import Pin, ADC, PWM
+import neopixel
+import time 
+
+# Light Sensor (LDR)
+ldr = ADC(Pin(34))
+ldr.atten(ADC.ATTN_11DB)
+light_threshold = 2000
+
+# Servo Motor (PWM control)
+servo = PWM(Pin(4), freq=50)
+
+# NeoPixel Ring (16 LEDs)
+neo_ring = neopixel.NeoPixel(Pin(2), 16)
+
+# NeoPixel Strip (32 LEDs) on Pin 17
+led_strip = neopixel.NeoPixel(Pin(17), 32)
+
+# Stepper Motor Pins (Half-step mode)
+coil_1 = Pin(12, Pin.OUT)
+coil_2 = Pin(13, Pin.OUT)
+coil_3 = Pin(14, Pin.OUT)
+coil_4 = Pin(15, Pin.OUT)
+
+# Half-step sequence (counter-clockwise)
+step_sequence_ccw = [
+    [1, 0, 0, 0],
+    [1, 1, 0, 0],
+    [0, 1, 0, 0],
+    [0, 1, 1, 0],
+    [0, 0, 1, 0],
+    [0, 0, 1, 1],
+    [0, 0, 0, 1],
+    [1, 0, 0, 1],
+]
+
+def step_motor_for_duration(duration_ms, delay=2):
+    start = time.ticks_ms()
+    step_index = 0
+    while time.ticks_diff(time.ticks_ms(), start) < duration_ms:
+        step = step_sequence_ccw[step_index]
+        coil_1.value(step[0])
+        coil_2.value(step[1])
+        coil_3.value(step[2])
+        coil_4.value(step[3])
+        step_index = (step_index + 1) % 8
+        time.sleep_ms(delay)
+
+    # Stop coils
+    coil_1.value(0)
+    coil_2.value(0)
+    coil_3.value(0)
+    coil_4.value(0)
+
+def rotate_servo_360():
+    # Simulate 360° by doing two 180° movements
+    servo.duty(26)   # rotate to one end
+    time.sleep(0.5)
+    servo.duty(125)  # rotate to the other end
+    time.sleep(0.5)
+    servo.duty(77)   # center
+
+def activate_all_for_8_seconds():
+    print("Light detected! Activating all for 8 seconds...")
+
+    # Lights ON
+    for i in range(16):
+        neo_ring[i] = (225, 225, 225)
+    neo_ring.write()
+    for i in range(32):
+        led_strip[i] = (225, 225, 225)
+    led_strip.write()
+
+    # Servo 360°
+    rotate_servo_360()
+
+    # Run stepper motor for 8 seconds
+    step_motor_for_duration(8000)
+
+    # Turn off everything after 8 seconds
+    for i in range(16):
+        neo_ring[i] = (0, 0, 0)
+    neo_ring.write()
+    for i in range(32):
+        led_strip[i] = (0, 0, 0)
+    led_strip.write()
+
+    servo.duty(77)  # center/stop servo
+
+# === Main Loop ===
+try:
+    while True:
+        ldr_val = ldr.read()
+        print("LDR:", ldr_val)
+
+        if ldr_val > light_threshold:
+            activate_all_for_8_seconds()
+
+            # Wait for light level to drop before retriggering
+            while ldr.read() > light_threshold:
+                time.sleep(0.1)
+
+        time.sleep(0.05)
+
+except KeyboardInterrupt:
+    print("Program stopped.")
+    servo.duty(77)
