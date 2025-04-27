@@ -5,7 +5,7 @@ import time
 # Light Sensor (LDR)
 ldr = ADC(Pin(34))
 ldr.atten(ADC.ATTN_11DB)
-light_threshold = 2000
+light_threshold = 200
 
 # Servo Motor (PWM control)
 servo = PWM(Pin(4), freq=50)
